@@ -143,7 +143,7 @@ func Login(c *gin.Context) {
 	//create token JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": user.ID,
-		"exp": time.Now().Add(time.Hour * 24 * 30).Unix(), //1 mont expiry
+		"exp": time.Now().Add(time.Hour).Unix(), //1 mont expiry
 	})
 
 	// Sign and get the complete encoded token as a string using the secret
@@ -156,9 +156,8 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	//make cookie
-	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("Auth", tokenString, 3600*24*30, "", "", false, true)
+	//make and set cookie
+	SetAuthCookie(c, tokenString)
 
 	//login
 	c.JSON(200, gin.H{
@@ -166,11 +165,11 @@ func Login(c *gin.Context) {
 	})
 }
 
-//validate user with token
+// validate user with token
 func Validate(c *gin.Context) {
 	user, _ := c.Get("user")
 
-	c.JSON(http.StatusBadRequest, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"message": user,
 	})
 }
@@ -210,4 +209,19 @@ func validatePassword(password string) bool {
 	}
 
 	return hasMinLen && hasUpper && hasLower && hasNumber && hasSpecial
+}
+
+// set cookie
+func SetAuthCookie(c *gin.Context, tokenString string) {
+	// Check if the "Auth" cookie is present
+	if cookie, err := c.Cookie("Auth"); err == nil && cookie != "" {
+		// Clear the existing "Auth" cookie
+		c.SetCookie("Auth", "", -1, "/", "", false, true)
+	}
+
+	// Set the SameSite attribute
+	c.SetSameSite(http.SameSiteLaxMode)
+
+	// Set the new "Auth" cookie with a 30-day expiration
+	c.SetCookie("Auth", tokenString, 3600, "/", "", false, true)
 }
