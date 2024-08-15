@@ -15,7 +15,8 @@ import (
 )
 
 func CreateAccount(c *gin.Context) {
-	// Get contents from body of request
+
+	//struct of the request body
 	var body struct {
 		First_name string `json:"first_name" binding:"required"`
 		Last_name  string `json:"last_name" binding:"required"`
@@ -27,7 +28,7 @@ func CreateAccount(c *gin.Context) {
 		Mobile     string `json:"mobile" binding:"required"`
 	}
 
-	// Bind JSON input to the struct
+	//Get contents from body of request and Bind JSON input to the struct
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to read body",
@@ -53,7 +54,7 @@ func CreateAccount(c *gin.Context) {
 		body.Mobile,
 	)
 
-	if isValidName && isValidEmail && isValidPassword {
+	if isValidName && isValidEmail && isValidPassword && isValidPhoneNumber {
 		// Hash password
 		hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
 		if err != nil {
@@ -77,8 +78,8 @@ func CreateAccount(c *gin.Context) {
 		result := initializers.DB.Create(&user)
 		if result.Error != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"id":    "2000",
-				"error": "Failed to create user",
+				"id":    2000,
+				"error": "Failed to insert the record",
 			})
 			return
 		}
@@ -86,7 +87,7 @@ func CreateAccount(c *gin.Context) {
 		// Respond
 		c.JSON(http.StatusOK, gin.H{
 			"id":      2001,
-			"message": "User created successfully",
+			"message": "success",
 			"data":    user,
 		})
 	} else {
@@ -256,4 +257,205 @@ func SetAuthCookie(c *gin.Context, tokenString string) {
 
 	// Set the new "Auth" cookie with a 30-day expiration
 	c.SetCookie("Auth", tokenString, 3600, "/", "", false, true)
+}
+
+func DeleteUser(c *gin.Context) {
+	// Get id from request
+	id := c.Param("id")
+
+	var user models.User
+	// Check if the user exists
+	initializers.DB.First(&user, id)
+
+	if user.ID == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"id":    2011,
+			"error": "record not found",
+		})
+		return
+	}
+
+	// Delete the user
+	result := initializers.DB.Delete(&user)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"id":    2013,
+			"error": "failed to delete record",
+		})
+		return
+	}
+
+	// Respond with success
+	c.JSON(http.StatusOK, gin.H{
+		"id":      2012,
+		"message": "record deleted successfully",
+	})
+}
+
+func GetUser(c *gin.Context) {
+	// Get id from request
+	id := c.Param("id")
+
+	var user models.User
+
+	// Check if the user exists
+	initializers.DB.First(&user, id)
+
+	if user.ID == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"id":    2011,
+			"error": "record not found",
+		})
+		return
+	}
+
+	// Respond with success
+	c.JSON(http.StatusOK, gin.H{
+		"id":      2001,
+		"message": "success",
+		"data":    user,
+	})
+}
+
+func GetUsers(c *gin.Context) {
+	var users models.User
+
+	//retrieve all users
+	result := initializers.DB.Find(&users)
+
+	if result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"id":    2011,
+			"error": "records not present",
+		})
+		return
+	}
+
+	// Respond with success
+	c.JSON(http.StatusOK, gin.H{
+		"id":      2001,
+		"message": "success",
+		"data":    users,
+	})
+}
+
+func UpdateUser(c *gin.Context) {
+	// Get id from request
+	id := c.Param("id")
+
+	var body struct {
+		First_name string `json:"first_name"`
+		Last_name  string `json:"last_name"`
+		Password   string `json:"password"`
+		Gender     string `json:"gender"`
+		Birthdate  string `json:"birthdate"`
+		Address    string `json:"address"`
+		Email      string `json:"email"`
+		Mobile     string `json:"mobile"`
+	}
+
+	//Get contents from body of request and Bind JSON input to the struct
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Failed to read body",
+		})
+		return
+	}
+
+	// Parse the birthdate string into a time.Time object
+	birthdate, err := time.Parse("2006-01-02", body.Birthdate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid birthdate format, expected YYYY-MM-DD",
+		})
+		return
+	}
+
+	// Validate user input
+	isValidName, isValidEmail, isValidPassword, isValidPhoneNumber := validateUserInput(
+		body.First_name,
+		body.Last_name,
+		body.Email,
+		body.Password,
+		body.Mobile,
+	)
+
+	if isValidName && isValidEmail && isValidPassword && isValidPhoneNumber {
+
+		// Check if the user to be updated exists
+		var user models.User
+		result := initializers.DB.First(&user, id)
+
+		if result.Error != nil {
+			c.JSON(http.StatusNotFound, gin.H{
+				"id":    2011,
+				"error": "record not found",
+			})
+			return
+		}
+
+		// Hash password
+		hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Failed to hash password",
+			})
+			return
+		}
+
+		// update user
+		user = models.User{
+			First_name: body.First_name,
+			Last_name:  body.Last_name,
+			Password:   string(hash),
+			Gender:     body.Gender,
+			Birthdate:  birthdate,
+			Address:    body.Address,
+			Email:      body.Email,
+			Mobile:     body.Mobile,
+		}
+
+		//save updated user
+		result = initializers.DB.Save(&user)
+		if result.Error != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"id":    2014,
+				"error": "Failed to update the record",
+			})
+			return
+		}
+
+		// Respond with success
+		c.JSON(http.StatusOK, gin.H{
+			"id":      2001,
+			"message": "success",
+			"data":    user,
+		})
+	} else {
+		if !isValidName {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"id":    2002,
+				"error": "Invalid first name or last name format",
+			})
+		}
+		if !isValidEmail {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"id":    2003,
+				"error": "Invalid email format",
+			})
+		}
+		if !isValidPassword {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"id":    2004,
+				"error": "Weak password. The password should be at least 8 characters long and include special characters.",
+			})
+		}
+		if !isValidPhoneNumber {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"id":    2010,
+				"error": "Phone number is not valid",
+			})
+		}
+	}
 }

@@ -1,0 +1,15 @@
+package models
+
+import (
+	"gorm.io/gorm"
+)
+
+type Photo struct {
+	gorm.Model
+	Title string
+	Description Text
+	Filename string //(path to the high-quality image)
+	// low_res_filename: String (path to the low-quality watermarked image)
+	Price de
+	Uploaded_by uint
+}

@@ -16,4 +16,5 @@ type User struct {
 	Address    string
 	Email      string `gorm:"unique"`
 	Mobile     string
+	Photos     []Photo // One-to-Many relationship with Photo
 }
