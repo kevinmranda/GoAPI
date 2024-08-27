@@ -1,6 +1,9 @@
 package routes
 
 import (
+	"time"
+
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/kevinmranda/GoAPI/controllers"
 	"github.com/kevinmranda/GoAPI/middleware"
@@ -10,47 +13,64 @@ import (
 func Routes() {
 	r := gin.Default()
 
-	//User Routes
+	// CORS Middleware configuration
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:4200"}, // Allow frontend's origin
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}), middleware.LogRequestResponseMiddleware())
+
+	// User Routes
 	r.POST("/createAccount", controllers.CreateAccount)
 	r.POST("/login", controllers.Login)
 	r.GET("/getUser/:id", controllers.GetUser)
 	r.GET("/getUsers/", controllers.GetUsers)
+	r.POST("/sendResetPasswordEmail/", controllers.SendResetPasswordEmail)
+	r.POST("/reset-password/:token", controllers.ResetPassword)
 
-	//Photo Routes
+	// Photo Routes
 	r.GET("/getPhoto/:id", controllers.GetPhoto)
 	r.GET("/getPhotos/", controllers.GetPhotos)
 
-	//Order Routes
+	// Order Routes
 	r.POST("/addOrder", controllers.AddOrder)
 	r.GET("/getOrder/:id", controllers.GetOrder)
 	r.GET("/getOrders/", controllers.GetOrders)
 
-	//Payment Routes
+	// Payment Routes
 	r.POST("/payOrder", controllers.AddPayment)
 	r.GET("/getPayment/:id", controllers.GetPayment)
 	r.GET("/getPayments/", controllers.GetPayments)
 
-	protected := r.Group("/")
-	protected.Use(middleware.AuthMiddleware)
-	{
-		// User Routes
-		protected.DELETE("/deleteUser/:id", controllers.DeleteUser)
-		protected.PUT("/updateUser/:id", controllers.UpdateUser)
+	// protected := r.Group("/")
+	// // protected.Use(middleware.AuthMiddleware)
+	// {
+	// User Routes
+	r.DELETE("/deleteUser/:id", controllers.DeleteUser)
+	r.PUT("/updateUser/:id", controllers.UpdateUser)
+	r.PUT("/updateUserPassword/:id", controllers.UpdateUserPassword)
+	r.PUT("/updateUserPreferences/:id", controllers.UpdateUserPreferences)
 
-		// Photo Routes
-		protected.POST("/insertPhoto", controllers.AddPhoto)
-		protected.DELETE("/deletePhoto/:id", controllers.DeletePhoto)
-		protected.PUT("/updatePhoto/:id", controllers.UpdatePhoto)
+	// Photo Routes
+	r.POST("/insertPhoto", controllers.AddPhoto)
+	r.DELETE("/deletePhoto/:id", controllers.DeletePhoto)
+	r.PUT("/updatePhoto/:id", controllers.UpdatePhoto)
 
-		// Order Routes
-		protected.DELETE("/removeOrder/:id", controllers.RemoveOrder)
-		protected.PUT("/updateOrder/:id", controllers.UpdateOrder)
+	// Order Routes
+	r.DELETE("/removeOrder/:id", controllers.RemoveOrder)
+	r.PUT("/updateOrder/:id", controllers.UpdateOrder)
 
-		// Payment Routes
-		protected.DELETE("/deleteOrder/:id", controllers.DeletePayment)
-		protected.PUT("/updatePayment/:id", controllers.UpdatePayment)
-	}
+	// Payment Routes
+	r.DELETE("/deleteOrder/:id", controllers.DeletePayment)
+	r.PUT("/updatePayment/:id", controllers.UpdatePayment)
+
+	//Logs Routes
+	r.GET("/logs", controllers.GetLogs)
+
+	// }
 
 	r.Run()
-
 }

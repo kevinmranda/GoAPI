@@ -27,7 +27,7 @@ func CreateAccount(c *gin.Context) {
 		Password   string `json:"password" binding:"required"`
 		Gender     string `json:"gender" binding:"required"`
 		Birthdate  string `json:"birthdate" binding:"required"`
-		Address    string `json:"address" binding:"required"`
+		Address    string `json:"address"`
 		Email      string `json:"email" binding:"required"`
 		Mobile     string `json:"mobile" binding:"required"`
 	}
@@ -195,21 +195,21 @@ func Login(c *gin.Context) {
 
 // sends email to users who have created accounts
 func sendEmail(email, firstName, lastName string) {
-    // Set up SMTP authentication
-    eml := os.Getenv("STMP_EMAIL")
-    pswd := os.Getenv("STMP_PASSWORD")
-    host := os.Getenv("STMP_HOST")
-    addr := os.Getenv("STMP_SERVER_ADDR")
+	// Set up SMTP authentication
+	eml := os.Getenv("STMP_EMAIL")
+	pswd := os.Getenv("STMP_PASSWORD")
+	host := os.Getenv("STMP_HOST")
+	addr := os.Getenv("STMP_SERVER_ADDR")
 
-    auth := smtp.PlainAuth("", eml, pswd, host)
+	auth := smtp.PlainAuth("", eml, pswd, host)
 
-    // Set up email details
-    from := eml
-    to := []string{email}
-    subject := "Your ClickMaster Account is Ready!"
+	// Set up email details
+	from := eml
+	to := []string{email}
+	subject := "Your ClickMaster Account is Ready!"
 
-    // Email body template
-    body := fmt.Sprintf(`
+	// Email body template
+	body := fmt.Sprintf(`
 Hello %s %s,
 
 Thank you for creating an account at ClickMaster. Your account is now ready.
@@ -224,22 +224,20 @@ Your ClickMaster Team
 
 ClickMaster Inc.
 www.clickmaster.com | support@clickmaster.com
-Managing Director: Kevin Mranda
+Managing Director: David Robert
 VAT-Number: DE294776378
-
-Legal Representative: Kevin Mranda
 
 ClickMaster Inc., Kinondoni Mkwajuni, Dar es Salaam, Tanzania.
 `, firstName, lastName)
 
-    // Create a byte slice for the email message
-    msg := bytes.NewBufferString("Subject: " + subject + "\r\n\r\n" + body)
+	// Create a byte slice for the email message
+	msg := bytes.NewBufferString("Subject: " + subject + "\r\n\r\n" + body)
 
-    // Send the email
-    err := smtp.SendMail(addr, auth, from, to, msg.Bytes())
-    if err != nil {
-        log.Fatalf("Error sending email: %v", err)
-    }
+	// Send the email
+	err := smtp.SendMail(addr, auth, from, to, msg.Bytes())
+	if err != nil {
+		log.Fatalf("Error sending email: %v", err)
+	}
 }
 
 // validates user inputs
@@ -323,7 +321,7 @@ func DeleteUser(c *gin.Context) {
 	if user.ID == 0 {
 		c.JSON(http.StatusNotFound, gin.H{
 			"id":    2011,
-			"error": "record not found",
+			"error": "user not found",
 		})
 		return
 	}
@@ -334,7 +332,7 @@ func DeleteUser(c *gin.Context) {
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"id":    2013,
-			"error": "failed to delete record",
+			"error": "failed to delete user",
 		})
 		return
 	}
@@ -342,7 +340,7 @@ func DeleteUser(c *gin.Context) {
 	// Respond with success
 	c.JSON(http.StatusOK, gin.H{
 		"id":      2012,
-		"message": "record deleted successfully",
+		"message": "user deleted successfully",
 	})
 }
 
@@ -500,6 +498,315 @@ func UpdateUser(c *gin.Context) {
 			"error": errors,
 		})
 		return
+	}
+
+	// Save updated user
+	result = initializers.DB.Save(&user)
+	if result.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"id":    2014,
+			"error": "Failed to update the record",
+		})
+		return
+	}
+
+	// Respond with success
+	c.JSON(http.StatusOK, gin.H{
+		"id":      2001,
+		"message": "success",
+		"data":    user,
+	})
+}
+
+func SendResetPasswordEmail(c *gin.Context) {
+
+	//struct of the request body
+	var EmailBody struct {
+		Email string `json:"email" binding:"required"`
+	}
+
+	//Get contents from body of request and Bind JSON input to the struct
+	if err := c.ShouldBindJSON(&EmailBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Failed to read body",
+		})
+		return
+	}
+
+	// Look up the user by email
+	var user models.User
+	initializers.DB.First(&user, "email = ?", EmailBody.Email)
+	firstName := user.First_name
+	lastName := user.Last_name
+
+	if user.ID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"id":    2005,
+			"error": "Invalid email",
+			"data":  "",
+		})
+		return
+	}
+
+	// Create JWT token
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub": user.ID,
+		"exp": time.Now().Add(time.Hour).Unix(), // 1-hour expiry
+		"iat": time.Now().Unix(),
+	})
+
+	// Sign and get the complete encoded token as a string using the secret
+	tokenString, err := token.SignedString([]byte(os.Getenv("SECRET_KEY")))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"id":    2007,
+			"error": "Failed to create token",
+		})
+		return
+	}
+
+	// Store hashed token in the database with an expiration time
+	saveTokenToDB(user.ID, tokenString, time.Now().Add(time.Hour))
+
+	// Set up SMTP authentication
+	eml := os.Getenv("STMP_EMAIL")
+	pswd := os.Getenv("STMP_PASSWORD")
+	host := os.Getenv("STMP_HOST")
+	addr := os.Getenv("STMP_SERVER_ADDR")
+
+	auth := smtp.PlainAuth("", eml, pswd, host)
+
+	// Set up email details
+	from := eml
+	to := []string{EmailBody.Email}
+	subject := "Password Reset Request"
+
+	// Email body template
+	body := fmt.Sprintf(`
+Hello %s %s,
+
+Click the link to reset your password: http://localhost:4200/resetPassword?token=%s
+
+Should you have any questions about ClickMaster, visit our support page: https://support.clickmaster.com
+
+Kind regards,
+
+Your ClickMaster Team
+
+---
+
+ClickMaster Inc.
+www.clickmaster.com | support@clickmaster.com
+Managing Director: David Robert
+VAT-Number: DE294776378
+
+ClickMaster Inc., Kinondoni Mkwajuni, Dar es Salaam, Tanzania.
+`, firstName, lastName, tokenString)
+
+	// Create a byte slice for the email message
+	msg := []byte("To: " + EmailBody.Email + "\r\n" +
+		"Subject: " + subject + "\r\n\r\n" +
+		body + "\r\n")
+
+	// Send the email
+	err = smtp.SendMail(addr, auth, from, to, msg)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"id":    2009,
+			"error": "Failed to send email",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Password reset email sent successfully",
+	})
+}
+
+func saveTokenToDB(userID uint, token string, expiry time.Time) {
+	// Create user
+	tokenToSave := models.Token{
+		UserID: userID,
+		Token:  token,
+		Expiry: expiry,
+	}
+	initializers.DB.Create(&tokenToSave)
+}
+
+func ResetPassword(c *gin.Context) {
+	// Get the token from the URL parameter
+	tokenParam := c.Param("token")
+
+	// Define a struct to capture the incoming request body
+	var body struct {
+		Password string `json:"password" binding:"required"`
+	}
+
+	// Bind the JSON input to the struct
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Failed to read body",
+		})
+		return
+	}
+
+	// Look up the token in the database
+	var token models.Token
+	if err := initializers.DB.First(&token, "token = ?", tokenParam).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"id":    2005,
+			"error": "Invalid or expired token",
+			"data":  "",
+		})
+		return
+	}
+
+	// Validate the new password (e.g., minimum length, special characters)
+	if !validatePassword(body.Password) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"id":    2002,
+			"error": "Weak password. The password should be at least 8 characters long and include special characters.",
+		})
+		return
+	}
+
+	// Hash the new password
+	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Failed to hash password",
+		})
+		return
+	}
+
+	// Find the user associated with the token and update their password
+	var user models.User
+	if err := initializers.DB.Model(&user).Where("id = ?", token.UserID).Update("password", string(hash)).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to reset user password",
+		})
+		return
+	}
+
+	// Respond with a success message
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User password updated successfully",
+	})
+}
+
+func UpdateUserPassword(c *gin.Context) {
+	c.Get("user")
+	// Get id from request
+	id := c.Param("id")
+
+	var body struct {
+		OldPassword string `json:"oldPassword" binding:"required"`
+		NewPassword string `json:"newPassword" binding:"required"`
+	}
+
+	// Get contents from body of request and bind JSON input to the struct
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Failed to read body",
+		})
+		return
+	}
+
+	// Check if the user to be updated exists
+	var user models.User
+	result := initializers.DB.Preload("Photos").First(&user, id)
+	if result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"id":    2011,
+			"error": "record not found",
+		})
+		return
+	}
+
+	if body.NewPassword != "" && body.OldPassword != "" {
+		if !validatePassword(body.NewPassword) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"id":    2002,
+				"error": "Weak password. The password should be at least 8 characters long and include special characters.",
+			})
+			return
+
+		} else {
+			//compare user password and oldPassword
+			err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.OldPassword))
+
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"id":    2006,
+					"error": "The Old Password is Invalid",
+				})
+				return
+			}
+			hash, err := bcrypt.GenerateFromPassword([]byte(body.NewPassword), 10)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": "Failed to hash password",
+				})
+				return
+			}
+			user.Password = string(hash)
+			// Save updated user
+			result = initializers.DB.Save(&user)
+			if result.Error != nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"id":    2014,
+					"error": "Failed to update the record",
+				})
+				return
+			}
+
+			// Respond with success
+			c.JSON(http.StatusOK, gin.H{
+				"id":      2001,
+				"message": "success",
+			})
+		}
+	}
+}
+
+func UpdateUserPreferences(c *gin.Context) {
+	c.Get("user")
+
+	id := c.Param("id")
+
+	var body struct {
+		Subscription bool   `json:"subscription"`
+		Theme        string `json:"theme"`
+		Language     string `json:"language"`
+	}
+
+	// Get contents from body of request and bind JSON input to the struct
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Failed to read body",
+		})
+		return
+	}
+
+	// Check if the user to be updated exists
+	var user models.User
+	result := initializers.DB.Preload("Photos").First(&user, id)
+	if result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"id":    2011,
+			"error": "record not found",
+		})
+		return
+	}
+
+	if body.Subscription {
+		user.Subscription = body.Subscription
+	}
+	if body.Theme != "" {
+		user.Theme = body.Theme
+	}
+	if body.Language != "" {
+		user.Language = body.Language
 	}
 
 	// Save updated user
