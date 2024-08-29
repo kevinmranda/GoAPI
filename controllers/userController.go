@@ -305,7 +305,7 @@ func SetAuthCookie(c *gin.Context, tokenString string) {
 	// Set the SameSite attribute
 	c.SetSameSite(http.SameSiteLaxMode)
 
-	// Set the new "Auth" cookie with a 30-day expiration
+	// Set the new "Auth" cookie with a day expiration
 	c.SetCookie("Auth", tokenString, 3600, "/", "", false, true)
 }
 
@@ -825,4 +825,39 @@ func UpdateUserPreferences(c *gin.Context) {
 		"message": "success",
 		"data":    user,
 	})
+}
+
+func GetUserPreferences(c *gin.Context) {
+	c.Get("user")
+
+	id := c.Param("id")
+
+	// Check if the user exists
+	var user models.User
+	result := initializers.DB.Preload("Photos").First(&user, id)
+	if result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"id":    2011,
+			"error": "record not found",
+		})
+		return
+	}
+
+	var Preferences struct {
+		Subscription bool
+		Theme        string
+		Language     string
+	}
+
+	Preferences.Subscription = user.Subscription
+	Preferences.Theme = user.Theme
+	Preferences.Language = user.Language
+
+	// Respond with success
+	c.JSON(http.StatusOK, gin.H{
+		"id":      2001,
+		"message": "success",
+		"data":    Preferences,
+	})
+
 }

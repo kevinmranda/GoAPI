@@ -12,9 +12,8 @@ import (
 func AddOrder(c *gin.Context) {
 	// Bind JSON input to the struct
 	var body struct {
-		Customer_email string  `json:"customer_email" binding:"required"`
-		Status         string  `json:"status" binding:"required"`
-		PhotoIDs       []uint  `json:"photo_ids" binding:"required"`
+		Customer_email string `json:"customer_email" binding:"required"`
+		PhotoIDs       []uint `json:"photo_ids" binding:"required"`
 	}
 
 	// if ValidateEmail(body.Customer_email) {
@@ -42,14 +41,13 @@ func AddOrder(c *gin.Context) {
 
 	// Create the order record
 	total_amount := 0.0
-	for _,photo := range photos {
+	for _, photo := range photos {
 		total_amount += photo.Price
 	}
 
 	order := models.Order{
 		Customer_email: body.Customer_email,
 		Total_amount:   total_amount,
-		Status:         body.Status,
 		Photos:         photos,
 	}
 
@@ -131,9 +129,18 @@ func GetOrder(c *gin.Context) {
 
 // retrieve all orders
 func GetOrders(c *gin.Context) {
+	id := c.Param("id")
 	var orders []models.Order
 	// Preload the many-to-many relationship with Photos and the one-to-one relationship with Payment
-	result := initializers.DB.Preload("Photos").Preload("Payment").Find(&orders)
+	result := initializers.DB.
+		Joins("JOIN order_photos ON orders.id = order_photos.order_id").
+		Joins("JOIN photos ON order_photos.photo_id = photos.id").
+		Where("photos.user_id = ?", id).
+		Preload("Photos").
+		Preload("Payment").
+		Group("orders.id").
+		Find(&orders)
+
 	if result.Error != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"id":    2011,

@@ -32,18 +32,19 @@ func Routes() {
 	r.POST("/reset-password/:token", controllers.ResetPassword)
 
 	// Photo Routes
-	r.GET("/getPhoto/:id", controllers.GetPhoto)
-	r.GET("/getPhotos/", controllers.GetPhotos)
+	r.GET("/getPhoto/:filename", controllers.GetPhoto)
+	r.GET("/getPhotos/:id", controllers.GetPhotos)
+	r.GET("/getAllPhotos/", controllers.GetAllPhotos)
 
 	// Order Routes
 	r.POST("/addOrder", controllers.AddOrder)
 	r.GET("/getOrder/:id", controllers.GetOrder)
-	r.GET("/getOrders/", controllers.GetOrders)
+	r.GET("/getOrders/:id", controllers.GetOrders)
 
 	// Payment Routes
 	r.POST("/payOrder", controllers.AddPayment)
 	r.GET("/getPayment/:id", controllers.GetPayment)
-	r.GET("/getPayments/", controllers.GetPayments)
+	r.GET("/getPayments/:id", controllers.GetPayments)
 
 	// protected := r.Group("/")
 	// // protected.Use(middleware.AuthMiddleware)
@@ -53,9 +54,11 @@ func Routes() {
 	r.PUT("/updateUser/:id", controllers.UpdateUser)
 	r.PUT("/updateUserPassword/:id", controllers.UpdateUserPassword)
 	r.PUT("/updateUserPreferences/:id", controllers.UpdateUserPreferences)
+	r.GET("/userPreferences/:id", controllers.GetUserPreferences)
 
 	// Photo Routes
-	r.POST("/insertPhoto", controllers.AddPhoto)
+	r.POST("/upload/", controllers.Upload)
+	r.POST("/insertPhoto/:id", controllers.AddPhoto)
 	r.DELETE("/deletePhoto/:id", controllers.DeletePhoto)
 	r.PUT("/updatePhoto/:id", controllers.UpdatePhoto)
 

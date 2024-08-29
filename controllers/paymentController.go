@@ -50,18 +50,23 @@ func AddPayment(c *gin.Context) {
 		Transaction_id: body.Transaction_id,
 	}
 
-	if err := initializers.DB.Create(&payment).Error; err != nil {
+	err := initializers.DB.Create(&payment).Error
+
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to create payment",
 		})
 		return
+	} else {
+		order.Status = "completed"
+		initializers.DB.Save(&order)
+		// Respond with success
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Payment created successfully",
+			"payment": payment,
+		})
 	}
 
-	// Respond with success
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Payment created successfully",
-		"payment": payment,
-	})
 }
 
 func DeletePayment(c *gin.Context) {
@@ -189,8 +194,16 @@ func GetPayment(c *gin.Context) {
 }
 
 func GetPayments(c *gin.Context) {
+	userID := c.Param("id")
 	var payments []models.Payment
-	result := initializers.DB.Find(&payments)
+	result := initializers.DB.
+		Joins("JOIN orders ON payments.order_id = orders.id").
+		Joins("JOIN order_photos ON orders.id = order_photos.order_id").
+		Joins("JOIN photos ON order_photos.photo_id = photos.id").
+		Where("photos.user_id = ?", userID).
+		Distinct("payments.*").
+		Find(&payments)
+
 	if result.Error != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"id":    2011,
