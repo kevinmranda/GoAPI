@@ -11,4 +11,5 @@ type Order struct {
 	Status         string  `gorm:"default:pending"` //(enum: "pending", "completed", "canceled")
 	Photos         []Photo `gorm:"many2many:order_photos;"`
 	Payment        Payment // One-to-One relationship with Payment
+	CustomerID     uint
 }

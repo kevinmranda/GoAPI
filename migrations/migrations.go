@@ -14,4 +14,6 @@ func SyncDatabase() {
 	initializers.DB.AutoMigrate(&models.Payment{})
 	initializers.DB.AutoMigrate(&models.Token{})
 	initializers.DB.AutoMigrate(&models.ActivityLog{})
+	initializers.DB.AutoMigrate(&models.Cart{})
+	initializers.DB.AutoMigrate(&models.Customer{})
 }

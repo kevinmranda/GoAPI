@@ -67,8 +67,17 @@ func Routes() {
 	r.PUT("/updateOrder/:id", controllers.UpdateOrder)
 
 	// Payment Routes
-	r.DELETE("/deleteOrder/:id", controllers.DeletePayment)
+	r.DELETE("/deletePayment/:id", controllers.DeletePayment)
 	r.PUT("/updatePayment/:id", controllers.UpdatePayment)
+
+	//Customer Routes
+	r.POST("/customerLogin/", controllers.CustomerAuthentication)
+	r.POST("/customerJoin/", controllers.AddCustomer)
+
+	//Cart Routes
+	r.POST("/cart/add/", controllers.AddItems)
+	r.DELETE("/cart/remove/:customer_id/:photo_id/", controllers.RemoveItem)
+	r.DELETE("/cart/clear/:customer_id", controllers.ClearCart)
 
 	//Logs Routes
 	r.GET("/logs", controllers.GetLogs)
