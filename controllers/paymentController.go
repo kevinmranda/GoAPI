@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kevinmranda/GoAPI/initializers"
@@ -9,13 +10,13 @@ import (
 )
 
 func AddPayment(c *gin.Context) {
+	c.Get("user")
 	// Bind JSON input to the struct
 	var body struct {
-		OrderID        uint    `json:"order_id" binding:"required"`
-		Amount         float64 `json:"amount" binding:"required"`
-		Status         string  `json:"status" binding:"required"`         // "pending", "completed", "failed"
-		Payment_method string  `json:"payment_method" binding:"required"` // "credit_card", "paypal"
-		Transaction_id string  `json:"transaction_id" binding:"required"` // Identifier from payment gateway
+		OrderID       uint    `json:"orderID" binding:"required"`
+		Amount        float64 `json:"amount" binding:"required"`
+		AccountNumber string  `json:"accountNumber" binding:"required"` //phone number
+		Provider      string
 	}
 
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -35,38 +36,46 @@ func AddPayment(c *gin.Context) {
 	}
 
 	amountToBePaid := order.Total_amount
-	if body.Amount == amountToBePaid {
+	if body.Amount != amountToBePaid {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Enter the correct amount please",
 		})
 		return
 	}
-	// Create the payment record and associate it with the order
-	payment := models.Payment{
-		Order_id:       body.OrderID,
-		Amount:         body.Amount,
-		Status:         body.Status,
-		Payment_method: body.Payment_method,
-		Transaction_id: body.Transaction_id,
+	amountToBePaidStr := strconv.FormatFloat(amountToBePaid, 'f', -1, 64)
+	transactionSuccess, transaction_id := MNOCheckout(body.AccountNumber, amountToBePaidStr, body.Provider)
+	if transactionSuccess {
+		// Create the payment record and associate it with the order
+		status := "completed"
+		payment_method := "credit_card"
+
+		payment := models.Payment{
+			Order_id:       body.OrderID,
+			Amount:         body.Amount,
+			Status:         status,
+			Payment_method: payment_method,
+			Transaction_id: transaction_id,
+		}
+		err := initializers.DB.Create(&payment).Error
+
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Failed to create payment",
+			})
+			return
+		} else {
+			order.Status = "completed"
+			initializers.DB.Save(&order)
+			// Respond with success
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Payment created successfully",
+				"payment": payment,
+			})
+		}
 	}
-
-	err := initializers.DB.Create(&payment).Error
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to create payment",
-		})
-		return
-	} else {
-		order.Status = "completed"
-		initializers.DB.Save(&order)
-		// Respond with success
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Payment created successfully",
-			"payment": payment,
-		})
-	}
-
+	c.JSON(http.StatusBadRequest, gin.H{
+		"error": "Failed to create payment from MNO",
+	})
 }
 
 func DeletePayment(c *gin.Context) {
@@ -173,6 +182,7 @@ func UpdatePayment(c *gin.Context) {
 }
 
 func GetPayment(c *gin.Context) {
+	c.Get("user")
 	id := c.Param("id")
 	var payment models.Payment
 	result := initializers.DB.Find(&payment, id)
@@ -194,6 +204,7 @@ func GetPayment(c *gin.Context) {
 }
 
 func GetPayments(c *gin.Context) {
+	c.Get("user")
 	userID := c.Param("id")
 	var payments []models.Payment
 	result := initializers.DB.

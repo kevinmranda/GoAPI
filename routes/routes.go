@@ -37,7 +37,7 @@ func Routes() {
 	r.GET("/getAllPhotos/", controllers.GetAllPhotos)
 
 	// Order Routes
-	r.POST("/addOrder", controllers.AddOrder)
+	r.POST("/addOrder/", controllers.AddOrder)
 	r.GET("/getOrder/:id", controllers.GetOrder)
 	r.GET("/getOrders/:id", controllers.GetOrders)
 
@@ -46,8 +46,20 @@ func Routes() {
 	r.GET("/getPayment/:id", controllers.GetPayment)
 	r.GET("/getPayments/:id", controllers.GetPayments)
 
+	//Customer Routes
+	r.POST("/customerLogin/", controllers.CustomerAuthentication)
+	r.POST("/customerJoin/", controllers.AddCustomer)
+
 	// protected := r.Group("/")
-	// // protected.Use(middleware.AuthMiddleware)
+	// protected.Use(middleware.AuthMiddleware,
+	// 	cors.New(cors.Config{
+	// 		AllowOrigins:     []string{"http://localhost:4200"}, // Allow frontend's origin
+	// 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+	// 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+	// 		ExposeHeaders:    []string{"Content-Length"},
+	// 		AllowCredentials: true,
+	// 		MaxAge:           12 * time.Hour,
+	// 	}), middleware.LogRequestResponseMiddleware())
 	// {
 	// User Routes
 	r.DELETE("/deleteUser/:id", controllers.DeleteUser)
@@ -70,14 +82,11 @@ func Routes() {
 	r.DELETE("/deletePayment/:id", controllers.DeletePayment)
 	r.PUT("/updatePayment/:id", controllers.UpdatePayment)
 
-	//Customer Routes
-	r.POST("/customerLogin/", controllers.CustomerAuthentication)
-	r.POST("/customerJoin/", controllers.AddCustomer)
-
 	//Logs Routes
 	r.GET("/logs", controllers.GetLogs)
 
 	// }
 
 	r.Run()
+
 }

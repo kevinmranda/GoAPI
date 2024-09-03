@@ -9,6 +9,7 @@ import (
 )
 
 func GetLogs(c *gin.Context) {
+	c.Get("user")
 	var logs []models.ActivityLog
 	result := initializers.DB.Find(&logs)
 	if result.Error != nil {

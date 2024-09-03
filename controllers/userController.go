@@ -296,17 +296,25 @@ func validatePhoneNumber(mobile string) bool {
 
 // set cookie
 func SetAuthCookie(c *gin.Context, tokenString string) {
-	// Check if the "Auth" cookie is present
+	// Clear any existing "Auth" cookie
 	if cookie, err := c.Cookie("Auth"); err == nil && cookie != "" {
-		// Clear the existing "Auth" cookie
-		c.SetCookie("Auth", "", -1, "/", "", false, true)
+		c.SetCookie("Auth", "", -1, "/", "localhost", false, true)
 	}
 
 	// Set the SameSite attribute
 	c.SetSameSite(http.SameSiteLaxMode)
 
-	// Set the new "Auth" cookie with a day expiration
-	c.SetCookie("Auth", tokenString, 3600, "/", "", false, true)
+	// Set the new "Auth" cookie with an hour expiration
+	// expiration := time.Now().Add(time.Hour)
+	c.SetCookie(
+		"Auth",      // Name
+		tokenString, // Value
+		3600,        // MaxAge (24 hours)
+		"/",         // Path
+		"",          // Domain
+		false,       // Secure (false since we're using HTTP)
+		true,        // HttpOnly
+	)
 }
 
 func DeleteUser(c *gin.Context) {

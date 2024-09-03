@@ -10,62 +10,71 @@ import (
 
 // add order to db
 func AddOrder(c *gin.Context) {
+	c.Get("user")
 	// Bind JSON input to the struct
 	var body struct {
 		Customer_email string `json:"customer_email" binding:"required"`
 		PhotoIDs       []uint `json:"photo_ids" binding:"required"`
 	}
 
-	// if ValidateEmail(body.Customer_email) {
-	// 	c.JSON(http.StatusBadRequest, gin.H{
-	// 		"id":    2002,
-	// 		"error": "Invalid email format",
-	// 	})
-	// } else {
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to read body",
 		})
 		return
 	}
+	if ValidateEmail(body.Customer_email) {
+		// Retrieve the associated photos based on PhotoIDs
+		var photos []models.Photo
+		if err := initializers.DB.Where("id IN ?", body.PhotoIDs).Find(&photos).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{
+				"id":    2011,
+				"error": "Failed to retrieve photos",
+			})
+			return
+		}
 
-	// Retrieve the associated photos based on PhotoIDs
-	var photos []models.Photo
-	if err := initializers.DB.Where("id IN ?", body.PhotoIDs).Find(&photos).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"id":    2011,
-			"error": "Failed to retrieve photos",
+		var customer models.Customer
+		if err := initializers.DB.Where("customer_email = ?", body.Customer_email).First(&customer).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{
+				"id":    2011,
+				"error": "Failed to retrieve customer",
+			})
+			return
+		}
+		// Create the order record
+		total_amount := 0.0
+		for _, photo := range photos {
+			total_amount += photo.Price
+		}
+
+		order := models.Order{
+			Customer_email: body.Customer_email,
+			Total_amount:   total_amount,
+			Photos:         photos,
+			CustomerID:     customer.ID,
+		}
+
+		if err := initializers.DB.Create(&order).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"id":    2000,
+				"error": "Failed to insert the record",
+			})
+			return
+		}
+
+		// Respond with success
+		c.JSON(http.StatusOK, gin.H{
+			"id":      2001,
+			"message": "Order created successfully",
+			"order":   order,
 		})
-		return
-	}
-
-	// Create the order record
-	total_amount := 0.0
-	for _, photo := range photos {
-		total_amount += photo.Price
-	}
-
-	order := models.Order{
-		Customer_email: body.Customer_email,
-		Total_amount:   total_amount,
-		Photos:         photos,
-	}
-
-	if err := initializers.DB.Create(&order).Error; err != nil {
+	} else {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"id":    2000,
-			"error": "Failed to insert the record",
+			"id":    2002,
+			"error": "Invalid email format",
 		})
-		return
 	}
-
-	// Respond with success
-	c.JSON(http.StatusOK, gin.H{
-		"id":      2001,
-		"message": "Order created successfully",
-		"order":   order,
-	})
-	// }
 
 }
 
@@ -107,6 +116,7 @@ func RemoveOrder(c *gin.Context) {
 
 // retrieve an order with id
 func GetOrder(c *gin.Context) {
+	c.Get("user")
 	id := c.Param("id")
 	var order models.Order
 	// Preload the many-to-many relationship with Photos and the one-to-one relationship with Payment
@@ -129,6 +139,7 @@ func GetOrder(c *gin.Context) {
 
 // retrieve all orders
 func GetOrders(c *gin.Context) {
+	c.Get("user")
 	id := c.Param("id")
 	var orders []models.Order
 	// Preload the many-to-many relationship with Photos and the one-to-one relationship with Payment

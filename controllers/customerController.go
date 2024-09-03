@@ -9,6 +9,7 @@ import (
 )
 
 func AddCustomer(c *gin.Context) {
+
 	var body struct {
 		Customer_email string `json:"customer_join_email" binding:"required"`
 	}
@@ -38,6 +39,7 @@ func AddCustomer(c *gin.Context) {
 }
 
 func CustomerAuthentication(c *gin.Context) {
+
 	var body struct {
 		Customer_email string `json:"customer_email" binding:"required"`
 	}

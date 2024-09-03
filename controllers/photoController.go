@@ -60,6 +60,7 @@ func AddPhoto(c *gin.Context) {
 }
 
 func Upload(c *gin.Context) {
+	c.Get("user")
 	// Parse the multipart form
 	err := c.Request.ParseMultipartForm(20 << 20) // 20 MB limit
 	if err != nil {
@@ -111,6 +112,7 @@ func Upload(c *gin.Context) {
 }
 
 func GetPhoto(c *gin.Context) {
+
 	// Get filename from request
 	filename := c.Param("filename")
 
@@ -133,6 +135,7 @@ func GetPhoto(c *gin.Context) {
 
 // get all photos
 func GetPhotos(c *gin.Context) {
+	c.Get("user")
 	id := c.Param("id")
 	var photos []models.Photo
 
