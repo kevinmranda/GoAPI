@@ -20,6 +20,6 @@ type User struct {
 	Photos       []Photo // One-to-Many relationship with Photo
 	Token        Token
 	Subscription bool   `gorm:"default:false"`
-	Theme        string `gorm:"default:aura-dark-amber"`
+	Theme        string `gorm:"default:bootstrap4-light-purple"`
 	Language     string `gorm:"default:en"`
 }

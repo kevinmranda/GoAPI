@@ -178,11 +178,11 @@ func UpdatePhoto(c *gin.Context) {
 
 	//struct for contents to be updated
 	var contentForUpdate struct {
-		Title       string  `json:"title"`
-		Description string  `json:"description"`
-		Filename    string  `json:"filename"` //(path to the high-quality image)
-		Price       float64 `json:"price"`
-		Uploaded_by uint    `json:"uploaded_by"` //Uploaded by
+		ID          uint   `json:"id"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Filename    string `json:"filename"` //(path to the high-quality image)
+		Price       string `json:"price"`
 	}
 
 	//Get contents from body of request and Bind JSON input to the struct
@@ -218,12 +218,9 @@ func UpdatePhoto(c *gin.Context) {
 		photo.Filename = contentForUpdate.Filename
 	}
 
-	if contentForUpdate.Price != 0 {
-		photo.Price = contentForUpdate.Price
-	}
-
-	if contentForUpdate.Uploaded_by != 0 {
-		photo.User_id = contentForUpdate.Uploaded_by
+	if contentForUpdate.Price != "" {
+		iPrice, _ := strconv.ParseFloat(contentForUpdate.Price, 64)
+		photo.Price = iPrice
 	}
 
 	result = initializers.DB.Save(&photo)

@@ -49,10 +49,10 @@ func AddOrder(c *gin.Context) {
 		}
 
 		order := models.Order{
-			Customer_email: body.Customer_email,
-			Total_amount:   total_amount,
-			Photos:         photos,
-			CustomerID:     customer.ID,
+			// Customer_email: body.Customer_email,
+			Total_amount: total_amount,
+			Photos:       photos,
+			CustomerID:   customer.ID,
 		}
 
 		if err := initializers.DB.Create(&order).Error; err != nil {
@@ -120,7 +120,14 @@ func GetOrder(c *gin.Context) {
 	id := c.Param("id")
 	var order models.Order
 	// Preload the many-to-many relationship with Photos and the one-to-one relationship with Payment
-	result := initializers.DB.Preload("Photos").Preload("Payment").First(&order, id)
+	result := initializers.DB.
+		Joins("JOIN order_photos ON orders.id = order_photos.order_id").
+		Joins("JOIN photos ON order_photos.photo_id = photos.id").
+		Joins("JOIN customers ON orders.customer_id = customers.id"). // Join the customer table
+		Preload("Photos").
+		Preload("Payment").
+		Select("orders.*, customers.customer_email"). // Select customer email
+		Find(&order, id)
 	if result.Error != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"id":    2011,
@@ -139,17 +146,19 @@ func GetOrder(c *gin.Context) {
 
 // retrieve all orders
 func GetOrders(c *gin.Context) {
-	c.Get("user")
+		c.Get("user")
 	id := c.Param("id")
 	var orders []models.Order
 	// Preload the many-to-many relationship with Photos and the one-to-one relationship with Payment
 	result := initializers.DB.
 		Joins("JOIN order_photos ON orders.id = order_photos.order_id").
 		Joins("JOIN photos ON order_photos.photo_id = photos.id").
+		Joins("JOIN customers ON orders.customer_id = customers.id").
 		Where("photos.user_id = ?", id).
 		Preload("Photos").
 		Preload("Payment").
 		Group("orders.id").
+		Select("orders.*, MAX(customers.customer_email) as Customer_email").
 		Find(&orders)
 
 	if result.Error != nil {
@@ -203,9 +212,9 @@ func UpdateOrder(c *gin.Context) {
 	}
 
 	//update order with struct provided on request body
-	if contentForUpdate.Customer_email != "" {
-		order.Customer_email = contentForUpdate.Customer_email
-	}
+	// if contentForUpdate.Customer_email != "" {
+	// 	order.Customer_email = contentForUpdate.Customer_email
+	// }
 
 	if contentForUpdate.Total_amount != 0 {
 		order.Total_amount = contentForUpdate.Total_amount
