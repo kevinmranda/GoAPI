@@ -82,6 +82,9 @@ func Routes() {
 	r.DELETE("/deletePayment/:id", controllers.DeletePayment)
 	r.PUT("/updatePayment/:id", controllers.UpdatePayment)
 
+	//AzamPay Callback
+	r.POST("/callback", controllers.AzamPayCallbackHandler)
+
 	//Logs Routes
 	r.GET("/logs", controllers.GetLogs)
 

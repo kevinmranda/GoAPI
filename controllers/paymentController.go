@@ -44,6 +44,15 @@ func AddPayment(c *gin.Context) {
 	}
 	amountToBePaidStr := strconv.FormatFloat(amountToBePaid, 'f', -1, 64)
 	transactionSuccess, transaction_id := MNOCheckout(body.AccountNumber, amountToBePaidStr, body.Provider)
+	// var transactionStatus string
+	// message := "ClickMaster Order Payment"
+	// externalID := "h87yh8hu874r98U9J98U9T6TGf562gd323rrf"
+	// if transactionSuccess {
+	// 	transactionStatus = "Success"
+	// } else {
+	// 	transactionStatus = "Failure"
+	// }
+	// AzamPayCallback(body.AccountNumber, amountToBePaidStr, message, externalID, body.Provider, transaction_id, transactionStatus)
 	if transactionSuccess {
 		// Create the payment record and associate it with the order
 		status := "completed"
@@ -68,7 +77,7 @@ func AddPayment(c *gin.Context) {
 			initializers.DB.Save(&order)
 			// Respond with success
 			c.JSON(http.StatusOK, gin.H{
-				"message": "Payment created successfully",
+				"message": "Payment successful",
 				"payment": payment,
 			})
 		}

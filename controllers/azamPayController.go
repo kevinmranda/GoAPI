@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 type AuthResponse struct {
@@ -83,6 +85,7 @@ func AuthToken() string {
 func MNOCheckout(accountNumber, amount, provider string) (bool, string) {
 	// Generate the token
 	token := AuthToken()
+	externalID := "h87yh8hu874r98U9J98U9T6TGf562gd323rrf"
 
 	// Create JSON body
 	jsonBody := fmt.Sprintf(`{
@@ -93,9 +96,9 @@ func MNOCheckout(accountNumber, amount, provider string) (bool, string) {
 		},
 		"amount": "%s",
 		"currency": "TZS",
-		"externalId": "h87yh8hu874r98U9J98U9T6TGf562gd323rrf",
+		"externalId":"%s",
 		"provider": "%s"
-	}`, accountNumber, amount, provider)
+	}`, accountNumber, amount, externalID, provider)
 
 	checkoutUrl := os.Getenv("AZAMPAY_CHECKOUT")
 	bodyReader := bytes.NewReader([]byte(jsonBody))
@@ -135,4 +138,33 @@ func MNOCheckout(accountNumber, amount, provider string) (bool, string) {
 
 	// Return the parsed auth token
 	return checkoutRes.Success, checkoutRes.TransactionId
+}
+
+func AzamPayCallbackHandler(c *gin.Context) {
+	// Extract the necessary fields from the request body (or query parameters, etc.)
+	var body struct {
+		AccountNumber     string `json:"msisdn"`
+		Amount            string `json:"amount"`
+		Message           string `json:"message"`
+		UtilityRef        string `json:"utilityRef"`
+		Operator          string `json:"operator"`
+		Reference         string `json:"reference"`
+		TransactionStatus string `json:"transactionstatus"`
+		SubmerchantAcc    string `json:"submerchantAcc"`
+		FspReferenceId    string `json:"fspReferenceId"`
+	}
+
+	// Bind JSON input to the struct
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Failed to read body",
+		})
+		return
+	}
+
+	// Respond with success
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+	})
+
 }
